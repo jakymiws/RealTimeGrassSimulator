@@ -82,15 +82,15 @@ LoadShaders(ShaderInfo* shaders)
         GLint compiled;
         glGetShaderiv( shader, GL_COMPILE_STATUS, &compiled );
         if ( !compiled ) {
-#ifdef _DEBUG
+//#ifdef _DEBUG
             GLsizei len;
             glGetShaderiv( shader, GL_INFO_LOG_LENGTH, &len );
 
             GLchar* log = new GLchar[len+1];
             glGetShaderInfoLog( shader, len, &len, log );
-            std::cerr << "Shader compilation failed: " << log << std::endl;
+            std::cout << "Shader compilation failed: " << log << std::endl;
             delete [] log;
-#endif /* DEBUG */
+//#endif /* DEBUG */
 
             return 0;
         }

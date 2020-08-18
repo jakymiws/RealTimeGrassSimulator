@@ -1,0 +1,31 @@
+#version 430
+
+layout (std430, binding=0) buffer grassBladePosition {
+    vec4 pos[];
+};
+
+layout (std430, binding=1) buffer grassBladeV1 {
+    vec4 cV1[];
+};
+
+layout (std430, binding=2) buffer grassBladeV2 {
+    vec4 cV2[];
+};
+
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+void main()
+{
+    uint id = gl_GlobalInvocationID.x;
+    
+    float offset = 0.001;
+
+    vec3 p = pos[id].xyz + offset;
+    vec3 v1 = cV1[id].xyz + offset;
+    vec3 v2 = cV2[id].xyz + offset;
+
+    pos[id] = vec4(p, 1.0);
+    cV1[id] = vec4(v1, 1.0);
+    cV2[id] = vec4(v2, 1.0);
+}

@@ -64,6 +64,8 @@ float zTrans = 1.77f;
 float xTrans = 1.77f;
 float qScale = 1.77f;
 
+unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer;
+
 int main(void)
 {
     GLFWwindow* window;
@@ -211,7 +213,7 @@ float verts[] = {
         blades.push_back(_blade);
     }
 
-    unsigned int grassVAO, grassVBO, grassPosBuffer, grassV1Buffer, grassV2Buffer;
+    unsigned int grassVAO, grassVBO;
     glGenVertexArrays(1, &grassVAO);
     glGenBuffers(1, &grassVBO);
     glGenBuffers(1, &grassPosBuffer);
@@ -284,6 +286,15 @@ float verts[] = {
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    
+    //Compute 
+    ShaderInfo force_compute_shader_info[] = {
+        {GL_COMPUTE_SHADER, "../shaders/grass_force.comp"},
+        {GL_NONE, NULL}
+    };
+
+    GLuint force_compute_program = LoadShaders(force_compute_shader_info);
+    printf("force compute shader program: %d \n", force_compute_program);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -299,7 +310,16 @@ float verts[] = {
         glfwGetFramebufferSize(window, &width, &height);
         ratio = width / (float) height;
  
-        //draw
+        //compute forces then draw
+        glUseProgram(force_compute_program);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, grassPosBuffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, grassV1Buffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, grassV2Buffer);
+
+        glDispatchCompute((num_blades/16) + 1, 1, 1);
+
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
