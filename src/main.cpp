@@ -15,6 +15,15 @@
 #include "LoadShaders.h"
 #include "camera.h"
 
+struct IndirectRenderParams
+{
+    GLuint count;
+    GLuint primCount;
+    GLuint firstIndex;
+    GLuint baseVertex;
+    GLuint baseInstance;
+};
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -33,7 +42,27 @@ float lastX = SCREEN_WIDTH / 2.0f;
 float lastY = SCREEN_HEIGHT / 2.0f;
 bool firstMouse = true;
 
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+glm::vec3 lightPos(5.0f, 1.0f, 2.0f);
+
+int num_blades = 100;
+
+struct Blade
+{
+    glm::vec3 v0;
+    glm::vec3 v1;
+    glm::vec3 v2;
+
+    glm::vec3 up;
+    glm::vec3 dir;
+    float height;
+    float width;
+};
+
+std::vector<Blade> blades;
+
+float zTrans = 1.77f;
+float xTrans = 1.77f;
+float qScale = 1.77f;
 
 int main(void)
 {
@@ -132,6 +161,7 @@ float verts[] = {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    //grass blades 
     ShaderInfo grass_shader_info[] = {
         {GL_VERTEX_SHADER, "../shaders/grass.vs"},
         {GL_FRAGMENT_SHADER, "../shaders/grass.fs"},
@@ -143,7 +173,90 @@ float verts[] = {
     GLuint grass_shader_program = LoadShaders(grass_shader_info);
 
     printf("grass shader program: %d \n", grass_shader_program);
-    
+
+    std::vector<glm::vec4> grass_blade_positions;
+    std::vector<glm::vec4> grass_blade_v1s;
+    std::vector<glm::vec4> grass_blade_v2s;
+    for (int i = 0; i < num_blades; i++)
+    {
+        float grass_height = 1.0f;
+        float grass_width = 0.2f;
+            
+        int pos_max = -5;
+        int pos_min = 5;
+            
+        float xCoord = (float)(std::rand() % ((pos_max - pos_min) + 1) + pos_min);
+        float zCoord = (float)(std::rand() % ((pos_max - pos_min) + 1) + pos_min);
+
+        glm::vec3 controlPoint0 = glm::vec3(xCoord, 0.0, zCoord);
+        glm::vec3 controlPoint1 = controlPoint0 + glm::vec3(0, grass_height, 0);
+        glm::vec3 controlPoint2 = controlPoint1;
+
+        glm::vec3 grass_up = glm::vec3(0, 1.0f, 0);
+        glm::vec3 grass_direction = glm::vec3(0.5f, 0, 0.5f);
+
+        Blade _blade;
+        _blade.dir = grass_direction;
+        _blade.up = grass_up;
+        _blade.v0 = controlPoint0;
+        _blade.v1 = controlPoint1;
+        _blade.v2 = controlPoint2;
+        _blade.width = grass_width;
+        _blade.height = grass_height;
+
+        grass_blade_positions.push_back(glm::vec4(controlPoint0, 1.0f));
+        grass_blade_v1s.push_back(glm::vec4(controlPoint1, 1.0f));
+        grass_blade_v2s.push_back(glm::vec4(controlPoint2, 1.0f));
+
+        blades.push_back(_blade);
+    }
+
+    unsigned int grassVAO, grassVBO, grassPosBuffer, grassV1Buffer, grassV2Buffer;
+    glGenVertexArrays(1, &grassVAO);
+    glGenBuffers(1, &grassVBO);
+    glGenBuffers(1, &grassPosBuffer);
+    glGenBuffers(1, &grassV1Buffer);
+    glGenBuffers(1, &grassV2Buffer);
+
+
+    glBindVertexArray(grassVAO);
+
+    //Vertex Attribs
+    //*****
+    //1. Blade Position Location = 0
+    //2. V1 Location = 1
+    //2. V2 Location = 2
+    //
+    //*****
+    glBindBuffer(GL_ARRAY_BUFFER, grassPosBuffer);
+    glBufferData(GL_ARRAY_BUFFER, num_blades * sizeof(glm::vec4), grass_blade_positions.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
+
+    glBindBuffer(GL_ARRAY_BUFFER, grassV1Buffer);
+    glBufferData(GL_ARRAY_BUFFER, num_blades * sizeof(glm::vec4), grass_blade_v1s.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
+
+    glBindBuffer(GL_ARRAY_BUFFER, grassV2Buffer);
+    glBufferData(GL_ARRAY_BUFFER, num_blades * sizeof(glm::vec4), grass_blade_v2s.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
+
+    // //Indirect----
+    IndirectRenderParams indirectRenderParams = { (GLuint)num_blades, (GLuint)1, (GLuint)0, (GLuint)0, (GLuint)0 };
+    unsigned int grassVBO_Indirect;
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, grassVBO_Indirect);
+    glBufferData(GL_DRAW_INDIRECT_BUFFER, sizeof(IndirectRenderParams), &indirectRenderParams, GL_STATIC_DRAW);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);//probably don't need this but to be safe keep it in.
+    // //End Indirect----
+
+    glPatchParameteri(GL_PATCH_VERTICES, 4);
+
+    //ground plane
     float quad_vertices[] = {
         -0.5f, -0.5f,
         0.5f, -0.5f,
@@ -151,38 +264,26 @@ float verts[] = {
         -0.5f, 0.5f
     };
 
-    unsigned int grassVAO, grassVBO;
-    glGenVertexArrays(1, &grassVAO);
-    glGenBuffers(1, &grassVBO);
+    ShaderInfo ground_plane_shader_info[] = {
+        {GL_VERTEX_SHADER, "../shaders/ground.vs"},
+        {GL_FRAGMENT_SHADER, "../shaders/ground.fs"},
+        {GL_NONE, NULL}
+    };
 
-    glBindVertexArray(grassVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, grassVBO);
+    GLuint ground_shader_program = LoadShaders(ground_plane_shader_info);
+
+    printf("ground shader program: %d \n", ground_shader_program);
+
+    unsigned int groundVAO, groundVBO;
+    glGenVertexArrays(1, &groundVAO);
+    glGenBuffers(1, &groundVBO);
+
+    glBindVertexArray(groundVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, groundVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), quad_vertices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-
-    glPatchParameteri(GL_PATCH_VERTICES, 4);
-
-    glUseProgram(grass_shader_program);
-
-    float grass_height = 1.5f;
-    float grass_width = 1.0f;
-    glm::vec3 controlPoint0 = glm::vec3(0,0,0);
-    glm::vec3 controlPoint1 = controlPoint0 + glm::vec3(0, grass_height, 0);
-    glm::vec3 controlPoint2 = controlPoint1;
-
-    glUniform3fv(glGetUniformLocation(grass_shader_program, "v0"), 1, &controlPoint0[0]);
-    glUniform3fv(glGetUniformLocation(grass_shader_program, "v1"), 1, &controlPoint1[0]);
-    glUniform3fv(glGetUniformLocation(grass_shader_program, "v2"), 1, &controlPoint2[0]);
-
-    glm::vec3 grass_up = glm::vec3(0, 1.0f, 0);
-    glm::vec3 grass_direction = glm::vec3(0.5f, 0, 0.5f);
-
-    glUniform3fv(glGetUniformLocation(grass_shader_program, "up"), 1, &grass_up[0]);
-    glUniform3fv(glGetUniformLocation(grass_shader_program, "direction"), 1, &grass_direction[0]);
-
-    glUniform1f(glGetUniformLocation(grass_shader_program, "w"), grass_width); 
 
     while (!glfwWindowShouldClose(window))
     {
@@ -222,19 +323,47 @@ float verts[] = {
         glDrawArrays(GL_TRIANGLES, 0, 36);
         //End Display light cube
 
+        //Display ground plane
+        glUseProgram(ground_shader_program);
+
+        glUniformMatrix4fv(glGetUniformLocation(ground_shader_program, "projection"), 1, GL_FALSE, &projection[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(ground_shader_program, "view"), 1, GL_FALSE, &view[0][0]);
+        
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(xTrans, 0, zTrans));
+        model = glm::scale(model, glm::vec3(qScale));
+        model = glm::rotate(model, 1.5708f, glm::vec3(1,0,0)); //1.5708 radians = 90 degrees
+
+        glUniformMatrix4fv(glGetUniformLocation(ground_shader_program, "model"), 1, GL_FALSE, &model[0][0]);
+
+        glBindVertexArray(groundVAO);
+        glDrawArrays(GL_QUADS, 0, 4);
+        //End Display ground plane
+
         //Display tessellated quad
         glUseProgram(grass_shader_program);
+        glBindVertexArray(grassVAO);
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, grassVBO_Indirect);
+
+        Blade _blade = blades[0];
+        //glUniform3fv(glGetUniformLocation(grass_shader_program, "up"), 1, &_blade.up[0]);
+        glUniform3fv(glGetUniformLocation(grass_shader_program, "direction"), 1, &_blade.dir[0]);
+
+        glUniform1f(glGetUniformLocation(grass_shader_program, "w"), _blade.width); 
 
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "projection"), 1, GL_FALSE, &projection[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "view"), 1, GL_FALSE, &view[0][0]);
 
         model = glm::mat4(1.0f);
+        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
 
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "model"), 1, GL_FALSE, &model[0][0]);
 
-        glBindVertexArray(grassVAO);
-        glDrawArrays(GL_PATCHES, 0, 4);
+        glDrawArraysIndirect(GL_PATCHES, 0);
 
+        //glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+        //glBindVertexArray(0);
+        //End display tessellated quad
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -248,6 +377,8 @@ float verts[] = {
 
 void processInput(GLFWwindow *window)
 {
+    float offset = 0.01f;
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
@@ -259,6 +390,38 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+    {
+        xTrans += offset;
+        printf("X: %f \n", xTrans);
+    }
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+    {
+        xTrans -= offset;
+        printf("X: %f \n", xTrans);
+    }
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+    {
+        zTrans += offset;
+        printf("Z: %f \n", zTrans);
+    }
+    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
+    {
+        zTrans -= offset;
+        printf("Z: %f \n", zTrans);
+    }
+    if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
+    {
+        qScale += offset;
+        printf("qscale: %f \n", qScale);
+    }
+    if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
+    {
+        qScale -= offset;
+        printf("qscale: %f \n", qScale);
+    }
+
+        
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
