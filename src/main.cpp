@@ -44,37 +44,50 @@ bool firstMouse = true;
 
 glm::vec3 lightPos(5.0f, 1.0f, 2.0f);
 
-int num_blades = 100;
+int num_blades = 500;
 
 struct Blade
 {
-    glm::vec3 v0;
-    glm::vec3 v1;
-    glm::vec3 v2;
-
     glm::vec3 up;
     glm::vec3 dir;
     float height;
     float width;
+    float stiffness;
 };
 
-std::vector<Blade> blades;
+const float MIN_HEIGHT = 1.3f;
+const float MAX_HEIGHT = 2.5f;
+const float MIN_WIDTH = 0.1f;
+const float MAX_WIDTH = 0.14f;
+const float MIN_BEND = 7.0f;
+const float MAX_BEND = 13.0f;
+
+const float planeDim = 10.0f;
+
+//std::vector<Blade> blades;
 
 float zTrans = 1.77f;
 float xTrans = 1.77f;
 float qScale = 1.77f;
 
-unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer;
+unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer, grassPropBuffer;
+unsigned int grassVBO_Indirect;
+
+
+float randomFloat()
+{
+    return (rand() / (float)RAND_MAX);
+}
 
 int main(void)
 {
+    if (!glfwInit())
+        exit(EXIT_FAILURE);
+
     GLFWwindow* window;
     GLuint vertex_buffer, vertex_shader, fragment_shader, program;
     GLint mvp_location, vpos_location, vcol_location;
   
-    if (!glfwInit())
-        exit(EXIT_FAILURE);
- 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
  
@@ -176,50 +189,44 @@ float verts[] = {
 
     printf("grass shader program: %d \n", grass_shader_program);
 
+    //Generate grass blades
     std::vector<glm::vec4> grass_blade_positions;
     std::vector<glm::vec4> grass_blade_v1s;
     std::vector<glm::vec4> grass_blade_v2s;
+    std::vector<glm::vec4> grass_blade_props;//y = height, z = width, w = stiffness
+   // std::vector<glm::vec3> grass_blade_directions;
     for (int i = 0; i < num_blades; i++)
     {
-        float grass_height = 1.0f;
-        float grass_width = 0.2f;
-            
-        int pos_max = -5;
-        int pos_min = 5;
-            
-        float xCoord = (float)(std::rand() % ((pos_max - pos_min) + 1) + pos_min);
-        float zCoord = (float)(std::rand() % ((pos_max - pos_min) + 1) + pos_min);
+        float grass_height = MIN_HEIGHT + (randomFloat() * (MAX_HEIGHT - MIN_HEIGHT));
+        float grass_width = MIN_WIDTH + (randomFloat() * (MAX_WIDTH - MIN_WIDTH));
 
-        glm::vec3 controlPoint0 = glm::vec3(xCoord, 0.0, zCoord);
-        glm::vec3 controlPoint1 = controlPoint0 + glm::vec3(0, grass_height, 0);
-        glm::vec3 controlPoint2 = controlPoint1;
+        float blade_stiffness = MIN_BEND + (randomFloat() * (MAX_BEND - MIN_BEND));
+            
+        float xCoord = (randomFloat() - 0.5f) * planeDim;
+        float zCoord = (randomFloat() - 0.5f) * planeDim;
 
         glm::vec3 grass_up = glm::vec3(0, 1.0f, 0);
-        glm::vec3 grass_direction = glm::vec3(0.5f, 0, 0.5f);
 
-        Blade _blade;
-        _blade.dir = grass_direction;
-        _blade.up = grass_up;
-        _blade.v0 = controlPoint0;
-        _blade.v1 = controlPoint1;
-        _blade.v2 = controlPoint2;
-        _blade.width = grass_width;
-        _blade.height = grass_height;
+        glm::vec3 controlPoint0 = glm::vec3(xCoord, 0.0, zCoord);
+        glm::vec3 controlPoint1 = controlPoint0 + grass_height*grass_up;
+        glm::vec3 controlPoint2 = controlPoint1;
+        
+        glm::vec3 grass_direction = glm::vec3(randomFloat() * 2.0f * M_PI, 0, randomFloat() * 2.0f * M_PI);
 
         grass_blade_positions.push_back(glm::vec4(controlPoint0, 1.0f));
-        grass_blade_v1s.push_back(glm::vec4(controlPoint1, 1.0f));
-        grass_blade_v2s.push_back(glm::vec4(controlPoint2, 1.0f));
-
-        blades.push_back(_blade);
+        grass_blade_v1s.push_back(glm::vec4(controlPoint1, grass_height));
+        grass_blade_v2s.push_back(glm::vec4(controlPoint2, grass_width));
+        grass_blade_props.push_back(glm::vec4(grass_direction, blade_stiffness));
+        //grass_blade_directions.push_back(grass_direction);
     }
 
-    unsigned int grassVAO, grassVBO;
+    unsigned int grassVAO;
     glGenVertexArrays(1, &grassVAO);
-    glGenBuffers(1, &grassVBO);
+    glGenBuffers(1, &grassVBO_Indirect);
     glGenBuffers(1, &grassPosBuffer);
     glGenBuffers(1, &grassV1Buffer);
     glGenBuffers(1, &grassV2Buffer);
-
+    glGenBuffers(1, &grassPropBuffer);
 
     glBindVertexArray(grassVAO);
 
@@ -228,6 +235,7 @@ float verts[] = {
     //1. Blade Position Location = 0
     //2. V1 Location = 1
     //2. V2 Location = 2
+    //3. [xyz=dir, w=stiffness] = 3
     //
     //*****
     glBindBuffer(GL_ARRAY_BUFFER, grassPosBuffer);
@@ -248,9 +256,14 @@ float verts[] = {
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
 
+    glBindBuffer(GL_ARRAY_BUFFER, grassPropBuffer);
+    glBufferData(GL_ARRAY_BUFFER, num_blades * sizeof(glm::vec4), grass_blade_props.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
+
     // //Indirect----
     IndirectRenderParams indirectRenderParams = { (GLuint)num_blades, (GLuint)1, (GLuint)0, (GLuint)0, (GLuint)0 };
-    unsigned int grassVBO_Indirect;
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, grassVBO_Indirect);
     glBufferData(GL_DRAW_INDIRECT_BUFFER, sizeof(IndirectRenderParams), &indirectRenderParams, GL_STATIC_DRAW);
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);//probably don't need this but to be safe keep it in.
@@ -309,12 +322,13 @@ float verts[] = {
 
         glfwGetFramebufferSize(window, &width, &height);
         ratio = width / (float) height;
- 
+
         //compute forces then draw
         glUseProgram(force_compute_program);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, grassPosBuffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, grassV1Buffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, grassV2Buffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, grassPropBuffer);
 
         glDispatchCompute((num_blades/16) + 1, 1, 1);
 
@@ -364,19 +378,18 @@ float verts[] = {
         glUseProgram(grass_shader_program);
         glBindVertexArray(grassVAO);
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, grassVBO_Indirect);
-
-        Blade _blade = blades[0];
+        //Blade _blade = blades[0];
         //glUniform3fv(glGetUniformLocation(grass_shader_program, "up"), 1, &_blade.up[0]);
-        glUniform3fv(glGetUniformLocation(grass_shader_program, "direction"), 1, &_blade.dir[0]);
+       // glm::vec3 _dir = glm::vec3(0.5f, 0.0, 0.5f);
+        //float _width = MAX_WIDTH;
+        //glUniform3fv(glGetUniformLocation(grass_shader_program, "direction"), 1, &_dir[0]);
 
-        glUniform1f(glGetUniformLocation(grass_shader_program, "w"), _blade.width); 
+        //glUniform1f(glGetUniformLocation(grass_shader_program, "w"), _width); 
 
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "projection"), 1, GL_FALSE, &projection[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "view"), 1, GL_FALSE, &view[0][0]);
-
         model = glm::mat4(1.0f);
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "model"), 1, GL_FALSE, &model[0][0]);
 
         glDrawArraysIndirect(GL_PATCHES, 0);

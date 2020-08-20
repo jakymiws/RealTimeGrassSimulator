@@ -1,12 +1,14 @@
-#version 400 core
+#version 430 core
 
 layout (vertices = 1) out;
 
 in vec4 tcV1[];
 in vec4 tcV2[];
+in vec4 tcProps[];
 
 patch out vec4 teV1;
 patch out vec4 teV2;
+patch out vec4 teProps;
 
 void main()
 {
@@ -20,6 +22,7 @@ void main()
 
     teV1 = tcV1[0];
     teV2 = tcV2[0];
+    teProps = tcProps[0];
 
     gl_out[gl_InvocationID].gl_Position	= gl_in[gl_InvocationID].gl_Position;
 

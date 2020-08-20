@@ -1,4 +1,4 @@
-#version 400 core
+#version 430 core
 
 layout (quads, equal_spacing, ccw) in;
 
@@ -7,15 +7,21 @@ uniform mat4 view;
 uniform mat4 projection;
 
 //uniform vec3 up;
-uniform vec3 direction;
-
-uniform float w;
+//uniform vec3 direction;
+//uniform float w;
 
 patch in vec4 teV1;
 patch in vec4 teV2;
+patch in vec4 teProps;// xyz = dir, w = stiffness
+
+//TODO: 
+//1. add width as patch in.
+//2. add direction as patch in.
 
 void main()
 {
+    vec3 direction = teProps.xyz;
+    float w = teV2.w;
 
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
