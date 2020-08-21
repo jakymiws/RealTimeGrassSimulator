@@ -16,67 +16,71 @@ layout (std430, binding=3) buffer grassProps {
     vec4 props[];
 };
 
-
 layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
+
+uniform float frameNum;
 
 void main()
 {
     uint id = gl_GlobalInvocationID.x;
-    
-    float blade_height = cV1[id].w;
+
     float blade_stiffness = props[id].w;
+    float blade_height = cV1[id].w;
+    float blade_width = cV2[id].w;
+    vec3 blade_up = props[id].xyz;
     
-    vec3 up = props[id].xyz;
-
-    //future uniforms
-    float dt = 0.1;
-    float gravity_acceleration = 9.81;
-
-    float direction =  pos[id].w;
-    float sinDir = sin(direction);
-    float cosDir = cos(direction);
-    vec3 blade_direction = normalize(cross(up, normalize(vec3(sinDir, sinDir+cosDir, cosDir))));
-    vec3 front_direction = normalize(cross(up, blade_direction));
+    float blade_direction_radians = pos[id].w;
+    float sinDir = sin(blade_direction_radians);
+    float cosDir = cos(blade_direction_radians);
+    vec3 blade_direction = normalize(cross(blade_up, normalize(vec3(sinDir, sinDir+cosDir, cosDir))));
+    vec3 front_direction = normalize(cross(blade_up, blade_direction));
 
     vec3 p = pos[id].xyz;
     vec3 v1 = cV1[id].xyz;
     vec3 v2 = cV2[id].xyz;
-    vec3 iv2 = p + up*blade_height;
 
-    //Force Computation and Application
-    vec3 recovery = (iv2 - v2) *(1.0 -  blade_stiffness * 0.25);
-    
-    vec3 env_gravity = normalize(vec3(0, -1.0, 0)) * gravity_acceleration;
-    vec3 local_gravity = (0.25) * length(env_gravity) * front_direction;
-    vec3 gravity = env_gravity + local_gravity;
-    vec3 wind = vec3(0.0);
+    //force computation
+    float dt = 0.1;
 
-    //vec3 blade_translation = (recovery + gravity + wind)*dt;
-    vec3 blade_translation = (recovery + gravity + wind)*dt;
+    vec3 initialPoseV2 = p + blade_up*blade_height;
 
-    v2 += blade_translation;
+    vec3 recovery_force = (initialPoseV2 - v2)*blade_stiffness;
 
-    //State Validation
-    v2 = v2 - up * min(dot(up, v2-p), 0.0);
+    float gravity_acceleration =0.981;
+    vec3 gravity_direction = vec3(0, -1.0 ,0);
+    vec3 environmental_gravity = gravity_direction * gravity_acceleration;//regular physical gravity.
+    vec3 local_front_gravity = 0.25 * length(environmental_gravity) * front_direction;//approximation of grass bending due to gravity.
+    vec3 gravity_force = environmental_gravity + local_front_gravity;
 
-    float lproj = length(v2 - p - up*(dot(v2-p, up))); 
+    vec3 wi = vec3(1.0, 0.2, 1.0) * sin(frameNum) * 1.0;
+    float windFd = 1 - abs( dot(normalize(wi), normalize(v2-p)));
+    float windFr = dot(v2-p, blade_up)/blade_height;
+    float windTheta = windFd*windFr;
+    vec3 wind_force = wi*windTheta;
 
-    if (abs(lproj) < 0.000001)
+    vec3 computed_blade_translation = (recovery_force + gravity_force + wind_force) * dt;
+
+    //apply integrated force
+    v2 += computed_blade_translation;
+
+    //validate state of control points
+    v2 = v2 - blade_up * min(blade_up*(v2-p), 0.0);
+
+    float lengthProj = length(v2 - p - blade_up*((v2-p)*blade_up));
+
+    if (abs(lengthProj) > 0.00001)
     {
-        float lproj_h = lproj/blade_height;
-        v1 = p + blade_height*up*max(1.0 - lproj_h, 0.05*max(lproj_h, 1));
+        float lpH = lengthProj/blade_height;
+        v1 = p + blade_height * blade_up * max(1 - lpH, 0.05*max(lpH, 1.0));
     }
 
-    float L1 = length(v2-v1) + length(v1-p);
+    float L = (2*length(p-v2) + length(p-v1) + length(v1-v2)) / 3.0;
+    float r = blade_height/L;
 
-    //Bezier curve approx from Graveson 1993. Assuming degree of curve is 2 - is it 3 perhaps?
-    float curve_length = (2*length(v2-p) + L1)/3.0;
-    float ratio = blade_height/curve_length;
+    vec3 v1_corrected = p + r*(v1-p);
+    vec3 v2_corrected = v1_corrected + r*(v2-v1);
 
-    vec3 v1_validated = p + ratio*(v1-p);
-    vec3 v2_validated = v1_validated + ratio*(v2-v1);
+    cV1[id] = vec4(v1_corrected, blade_height);
+    cV2[id] = vec4(v2_corrected, blade_width);
 
-    pos[id] = vec4(p, 1.0);
-    cV1[id] = vec4(v1_validated, 1.0);
-    cV2[id] = vec4(v2_validated, 1.0);
 }

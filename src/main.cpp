@@ -64,11 +64,9 @@ const float MAX_BEND = 13.0f;
 
 const float planeDim = 10.0f;
 
-//std::vector<Blade> blades;
-
 float zTrans = 1.77f;
 float xTrans = 1.77f;
-float qScale = 1.77f;
+float qScale = 2.0f;
 
 unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer, grassPropBuffer;
 unsigned int grassVBO_Indirect;
@@ -229,14 +227,6 @@ float verts[] = {
 
     glBindVertexArray(grassVAO);
 
-    //Vertex Attribs
-    //*****
-    //1. Blade Position Location = 0
-    //2. V1 Location = 1
-    //2. V2 Location = 2
-    //3. [xyz=dir, w=stiffness] = 3
-    //
-    //*****
     glBindBuffer(GL_ARRAY_BUFFER, grassPosBuffer);
     glBufferData(GL_ARRAY_BUFFER, num_blades * sizeof(glm::vec4), grass_blade_positions.data(), GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
@@ -324,6 +314,9 @@ float verts[] = {
 
         //compute forces then draw
         glUseProgram(force_compute_program);
+
+        glUniform1f(glGetUniformLocation(force_compute_program, "frameNum"), currentFrame);
+
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, grassPosBuffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, grassV1Buffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, grassV2Buffer);
@@ -363,7 +356,7 @@ float verts[] = {
         glUniformMatrix4fv(glGetUniformLocation(ground_shader_program, "view"), 1, GL_FALSE, &view[0][0]);
         
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(xTrans, 0, zTrans));
+        //model = glm::translate(model, glm::vec3(xTrans, 0, zTrans));
         model = glm::scale(model, glm::vec3(qScale));
         model = glm::rotate(model, 1.5708f, glm::vec3(1,0,0)); //1.5708 radians = 90 degrees
 
@@ -377,13 +370,6 @@ float verts[] = {
         glUseProgram(grass_shader_program);
         glBindVertexArray(grassVAO);
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, grassVBO_Indirect);
-        //Blade _blade = blades[0];
-        //glUniform3fv(glGetUniformLocation(grass_shader_program, "up"), 1, &_blade.up[0]);
-       // glm::vec3 _dir = glm::vec3(0.5f, 0.0, 0.5f);
-        //float _width = MAX_WIDTH;
-        //glUniform3fv(glGetUniformLocation(grass_shader_program, "direction"), 1, &_dir[0]);
-
-        //glUniform1f(glGetUniformLocation(grass_shader_program, "w"), _width); 
 
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "projection"), 1, GL_FALSE, &projection[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "view"), 1, GL_FALSE, &view[0][0]);
