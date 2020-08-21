@@ -14,13 +14,15 @@ patch in vec4 teV1;
 patch in vec4 teV2;
 patch in vec4 teProps;// xyz = dir, w = stiffness
 
+patch in vec3 teBladeDir;
+
 //TODO: 
 //1. add width as patch in.
 //2. add direction as patch in.
 
 void main()
 {
-    vec3 direction = teProps.xyz;
+    vec3 direction = teBladeDir;
     float w = teV2.w;
 
     float u = gl_TessCoord.x;

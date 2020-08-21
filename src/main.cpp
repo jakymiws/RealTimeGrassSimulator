@@ -211,13 +211,12 @@ float verts[] = {
         glm::vec3 controlPoint1 = controlPoint0 + grass_height*grass_up;
         glm::vec3 controlPoint2 = controlPoint1;
         
-        glm::vec3 grass_direction = glm::vec3(randomFloat() * 2.0f * M_PI, 0, randomFloat() * 2.0f * M_PI);
+        float blade_dir = randomFloat() * 2.0f * M_PI;
 
-        grass_blade_positions.push_back(glm::vec4(controlPoint0, 1.0f));
+        grass_blade_positions.push_back(glm::vec4(controlPoint0, blade_dir));
         grass_blade_v1s.push_back(glm::vec4(controlPoint1, grass_height));
         grass_blade_v2s.push_back(glm::vec4(controlPoint2, grass_width));
-        grass_blade_props.push_back(glm::vec4(grass_direction, blade_stiffness));
-        //grass_blade_directions.push_back(grass_direction);
+        grass_blade_props.push_back(glm::vec4(grass_up, blade_stiffness));
     }
 
     unsigned int grassVAO;
