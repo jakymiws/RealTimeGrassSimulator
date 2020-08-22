@@ -40,19 +40,19 @@ void main()
     vec3 v2 = cV2[id].xyz;
 
     //force computation
-    float dt = 0.1;
+    float dt = 0.01;
 
     vec3 initialPoseV2 = p + blade_up*blade_height;
 
     vec3 recovery_force = (initialPoseV2 - v2)*blade_stiffness;
 
-    float gravity_acceleration =0.981;
+    float gravity_acceleration = 9.81;
     vec3 gravity_direction = vec3(0, -1.0 ,0);
-    vec3 environmental_gravity = gravity_direction * gravity_acceleration;//regular physical gravity.
+    vec3 environmental_gravity = gravity_direction * gravity_acceleration*0.2;//regular physical gravity.
     vec3 local_front_gravity = 0.25 * length(environmental_gravity) * front_direction;//approximation of grass bending due to gravity.
     vec3 gravity_force = environmental_gravity + local_front_gravity;
 
-    vec3 wi = vec3(1.0, 0.2, 1.0) * sin(frameNum) * 1.0;
+    vec3 wi = vec3(1.0, 0.0, 1.0) * sin(frameNum) * p.x * 10.0;
     float windFd = 1 - abs( dot(normalize(wi), normalize(v2-p)));
     float windFr = dot(v2-p, blade_up)/blade_height;
     float windTheta = windFd*windFr;

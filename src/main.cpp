@@ -44,7 +44,7 @@ bool firstMouse = true;
 
 glm::vec3 lightPos(5.0f, 1.0f, 2.0f);
 
-int num_blades = 500;
+int num_blades = 5000;
 
 struct Blade
 {

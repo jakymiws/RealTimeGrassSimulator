@@ -15,12 +15,14 @@ patch out vec3 teBladeDir;
 
 void main()
 {
+    float tess_level = 7.0;
+
     gl_TessLevelInner[0] = 1.0;
-    gl_TessLevelInner[1] = 3.0;
+    gl_TessLevelInner[1] = tess_level;
     
-    gl_TessLevelOuter[0] = 3.0;
+    gl_TessLevelOuter[0] = tess_level;
     gl_TessLevelOuter[1] = 1.0;
-    gl_TessLevelOuter[2] = 3.0;
+    gl_TessLevelOuter[2] = tess_level;
     gl_TessLevelOuter[3] = 1.0;
 
     teV1 = tcV1[0];
