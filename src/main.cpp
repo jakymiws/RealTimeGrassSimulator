@@ -29,12 +29,14 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 
-const int SCREEN_WIDTH = 800;
-const int SCREEN_HEIGHT = 600;
+const int SCREEN_WIDTH = 1280;
+const int SCREEN_HEIGHT = 720;
 
 // timing
+bool debugMode = false;
 float deltaTime = 0.0f;	// time between current frame and last frame
-float lastFrame = 0.0f;
+float lastTime = 0.0f;
+int numFrames = 0;
  
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -44,7 +46,7 @@ bool firstMouse = true;
 
 glm::vec3 lightPos(5.0f, 1.0f, 2.0f);
 
-int num_blades = 5000;
+int num_blades = 10000;
 
 struct Blade
 {
@@ -89,7 +91,7 @@ int main(void)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
  
-    window = glfwCreateWindow(640, 480, "Simple example", NULL, NULL);
+    window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Real Time Grass Simulator", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -300,10 +302,21 @@ float verts[] = {
 
     while (!glfwWindowShouldClose(window))
     {
-        float currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
-
+        float currentTime = glfwGetTime();
+        deltaTime = currentTime - lastTime;
+        numFrames++;
+        if (deltaTime >= 1.0)
+        {   
+            if (debugMode)
+            {
+                printf("fps = %f\n", (float)numFrames);
+                printf("mpf = %f\n", 1000.0f/(float)numFrames);
+            }
+            
+            numFrames = 0;
+            lastTime = currentTime;
+        }
+        
         processInput(window);
 
         float ratio;
@@ -315,7 +328,7 @@ float verts[] = {
         //compute forces then draw
         glUseProgram(force_compute_program);
 
-        glUniform1f(glGetUniformLocation(force_compute_program, "frameNum"), currentFrame);
+        glUniform1f(glGetUniformLocation(force_compute_program, "frameNum"), (float)currentTime);
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, grassPosBuffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, grassV1Buffer);
@@ -396,47 +409,53 @@ float verts[] = {
 void processInput(GLFWwindow *window)
 {
     float offset = 0.01f;
+    float dt = 0.01f;
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime);
+        camera.ProcessKeyboard(FORWARD, dt);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
+        camera.ProcessKeyboard(BACKWARD, dt);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime);
+        camera.ProcessKeyboard(LEFT, dt);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+        camera.ProcessKeyboard(RIGHT, dt);
+    // if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+    // {
+    //     xTrans += offset;
+    //     printf("X: %f \n", xTrans);
+    // }
+    // if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+    // {
+    //     xTrans -= offset;
+    //     printf("X: %f \n", xTrans);
+    // }
+    // if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+    // {
+    //     zTrans += offset;
+    //     printf("Z: %f \n", zTrans);
+    // }
+    // if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
+    // {
+    //     zTrans -= offset;
+    //     printf("Z: %f \n", zTrans);
+    // }
+    // if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
+    // {
+    //     qScale += offset;
+    //     printf("qscale: %f \n", qScale);
+    // }
+    // if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
+    // {
+    //     qScale -= offset;
+    //     printf("qscale: %f \n", qScale);
+    // }
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
     {
-        xTrans += offset;
-        printf("X: %f \n", xTrans);
-    }
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
-    {
-        xTrans -= offset;
-        printf("X: %f \n", xTrans);
-    }
-    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
-    {
-        zTrans += offset;
-        printf("Z: %f \n", zTrans);
-    }
-    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
-    {
-        zTrans -= offset;
-        printf("Z: %f \n", zTrans);
-    }
-    if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
-    {
-        qScale += offset;
-        printf("qscale: %f \n", qScale);
-    }
-    if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
-    {
-        qScale -= offset;
-        printf("qscale: %f \n", qScale);
+        debugMode = !debugMode;
+        printf("-------------------\n");
     }
 
         
