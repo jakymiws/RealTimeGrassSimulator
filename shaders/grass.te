@@ -6,14 +6,15 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
-
 patch in vec4 teV1;//w = height
 patch in vec4 teV2;//w = width
 patch in vec4 teProps;//xyz = up, w = stiffness
 
 patch in vec3 teBladeDir;
 
-out float tessCoordY;
+out vec3 fragNormal;
+out vec2 fragUV;
+out vec4 fragPosition;
 
 vec3 BladeTriangle(vec3 i1, vec3 i2, float u, float v)
 {
@@ -67,8 +68,6 @@ void main()
 
     float bladeWidth = teV2.w;
 
-    tessCoordY = v;
-
     //vec3 offset = vec3(0.0);
     vec3 offset = teBladeDir * teV2.w;
     vec3 half_offset = offset * 0.5;
@@ -92,12 +91,15 @@ void main()
         tangent = normalize(h1*h2);
     }
 
-    vec2 fragUV = vec2(u,v);
-    vec3 fragNormal = normalize(cross(tangent, biTangent));
+    //vec2 texA = mix(te)
+    fragUV = vec2(u,v);
+    fragNormal = normalize(cross(tangent, biTangent));
 
     vec3 position = BladeTriangle(i1, i2, u, v);
    // vec3 position = BladeQuadCurve(i1, i2, u, v, fragNormal, bladeWidth);
 
     gl_Position = projection * view * model * vec4(position, 1.0);
+
+    fragPosition = vec4(position, abs(sin(2.0*teV1.w)));
 
 }

@@ -44,9 +44,9 @@ float lastX = SCREEN_WIDTH / 2.0f;
 float lastY = SCREEN_HEIGHT / 2.0f;
 bool firstMouse = true;
 
-glm::vec3 lightPos(5.0f, 1.0f, 2.0f);
+glm::vec3 lightPos(0.0f, 10.0f, 0.0f);
 
-int num_blades = 10000;
+int num_blades = 100000;
 
 struct Blade
 {
@@ -56,18 +56,18 @@ struct Blade
     float width;
     float stiffness;
 };
-
-const float MIN_HEIGHT = 1.3f;
-const float MAX_HEIGHT = 2.5f;
-const float MIN_WIDTH = 0.1f;
-const float MAX_WIDTH = 0.14f;
+float sc = 4.0f;
+const float MIN_HEIGHT = 1.3f/sc;
+const float MAX_HEIGHT = 2.5f/sc;
+const float MIN_WIDTH = 0.1f/sc;
+const float MAX_WIDTH = 0.14f/sc;
 const float MIN_BEND = 7.0f;
 const float MAX_BEND = 13.0f;
 
 const float planeDim = 10.0f;
 
-float zTrans = 1.77f;
-float xTrans = 1.77f;
+float zTrans = 0.0f;
+float xTrans = 0.0f;
 float qScale = 2.0f;
 
 unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer, grassPropBuffer;
@@ -253,6 +253,24 @@ float verts[] = {
     glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
 
+    int grassTexWidth, grassTexHeight, grassTexNumChannels;
+    unsigned char *grassTexData = stbi_load("../assets/GrassDiffuse.png", &grassTexWidth, &grassTexHeight, &grassTexNumChannels, 4);
+    
+    printf("width: %d height %d num channels: %d\n", grassTexWidth, grassTexHeight, grassTexNumChannels);
+
+    unsigned int grassTex;
+    glGenTextures(1, &grassTex);
+    glBindTexture(GL_TEXTURE_2D, grassTex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, grassTexWidth, grassTexHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, grassTexData);
+    
+    std::cout << "error status:" << glGetError() << std::endl;
+
+    stbi_image_free(grassTexData);
+
     // //Indirect----
     IndirectRenderParams indirectRenderParams = { (GLuint)num_blades, (GLuint)1, (GLuint)0, (GLuint)0, (GLuint)0 };
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, grassVBO_Indirect);
@@ -319,6 +337,8 @@ float verts[] = {
         
         processInput(window);
 
+        lightPos = glm::vec3(xTrans, lightPos.y, zTrans);
+
         float ratio;
         int width, height;
 
@@ -381,6 +401,10 @@ float verts[] = {
 
         //Display tessellated quad
         glUseProgram(grass_shader_program);
+
+        glBindTexture(GL_TEXTURE_2D, grassTex);
+        glUniform1i(glGetUniformLocation(grass_shader_program, "diffuseTexture"), 0);
+
         glBindVertexArray(grassVAO);
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, grassVBO_Indirect);
 
@@ -389,6 +413,8 @@ float verts[] = {
         model = glm::mat4(1.0f);
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "model"), 1, GL_FALSE, &model[0][0]);
+
+        glUniform3fv(glGetUniformLocation(grass_shader_program, "lightPosition"), 1, &lightPos[0]);
 
         glDrawArraysIndirect(GL_PATCHES, 0);
 
@@ -422,26 +448,26 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(LEFT, dt);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, dt);
-    // if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
-    // {
-    //     xTrans += offset;
-    //     printf("X: %f \n", xTrans);
-    // }
-    // if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
-    // {
-    //     xTrans -= offset;
-    //     printf("X: %f \n", xTrans);
-    // }
-    // if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
-    // {
-    //     zTrans += offset;
-    //     printf("Z: %f \n", zTrans);
-    // }
-    // if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
-    // {
-    //     zTrans -= offset;
-    //     printf("Z: %f \n", zTrans);
-    // }
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+    {
+        xTrans += offset;
+        printf("X: %f \n", xTrans);
+    }
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+    {
+        xTrans -= offset;
+        printf("X: %f \n", xTrans);
+    }
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+    {
+        zTrans += offset;
+        printf("Z: %f \n", zTrans);
+    }
+    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
+    {
+        zTrans -= offset;
+        printf("Z: %f \n", zTrans);
+    }
     // if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
     // {
     //     qScale += offset;
