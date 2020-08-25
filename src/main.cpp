@@ -44,9 +44,9 @@ float lastX = SCREEN_WIDTH / 2.0f;
 float lastY = SCREEN_HEIGHT / 2.0f;
 bool firstMouse = true;
 
-glm::vec3 lightPos(0.0f, 10.0f, 0.0f);
+glm::vec3 lightPos(5.0f, 1.0f, 0.0f);
 
-int num_blades = 100000;
+int num_blades = 200000;
 
 struct Blade
 {
@@ -66,17 +66,27 @@ const float MAX_BEND = 13.0f;
 
 const float planeDim = 10.0f;
 
-float zTrans = 0.0f;
+float zTrans = 3.0f;
 float xTrans = 0.0f;
 float qScale = 2.0f;
 
-unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer, grassPropBuffer;
+unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer, grassPropBuffer, grassAgeBuffer;
 unsigned int grassVBO_Indirect;
+
+int debugSwitch = 0;
 
 
 float randomFloat()
 {
     return (rand() / (float)RAND_MAX);
+}
+
+float randomFloatRange(float a, float b)
+{
+    float f = randomFloat();
+    float diff = b-a;
+    float r = f*diff;
+    return a+r;
 }
 
 int main(void)
@@ -194,6 +204,7 @@ float verts[] = {
     std::vector<glm::vec4> grass_blade_v1s;
     std::vector<glm::vec4> grass_blade_v2s;
     std::vector<glm::vec4> grass_blade_props;//y = height, z = width, w = stiffness
+    std::vector<float> grass_ages;
    // std::vector<glm::vec3> grass_blade_directions;
     for (int i = 0; i < num_blades; i++)
     {
@@ -212,11 +223,13 @@ float verts[] = {
         glm::vec3 controlPoint2 = controlPoint1;
         
         float blade_dir = randomFloat() * 2.0f * M_PI;
+        float grass_age = randomFloatRange(0.1, 0.3);
 
         grass_blade_positions.push_back(glm::vec4(controlPoint0, blade_dir));
         grass_blade_v1s.push_back(glm::vec4(controlPoint1, grass_height));
         grass_blade_v2s.push_back(glm::vec4(controlPoint2, grass_width));
         grass_blade_props.push_back(glm::vec4(grass_up, blade_stiffness));
+        grass_ages.push_back(grass_age);
     }
 
     unsigned int grassVAO;
@@ -226,6 +239,7 @@ float verts[] = {
     glGenBuffers(1, &grassV1Buffer);
     glGenBuffers(1, &grassV2Buffer);
     glGenBuffers(1, &grassPropBuffer);
+    glGenBuffers(1, &grassAgeBuffer);
 
     glBindVertexArray(grassVAO);
 
@@ -251,6 +265,12 @@ float verts[] = {
     glBufferData(GL_ARRAY_BUFFER, num_blades * sizeof(glm::vec4), grass_blade_props.data(), GL_STATIC_DRAW);
     glEnableVertexAttribArray(3);
     glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
+
+    glBindBuffer(GL_ARRAY_BUFFER, grassAgeBuffer);
+    glBufferData(GL_ARRAY_BUFFER, num_blades * sizeof(float), grass_ages.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
 
     int grassTexWidth, grassTexHeight, grassTexNumChannels;
@@ -415,6 +435,8 @@ float verts[] = {
         glUniformMatrix4fv(glGetUniformLocation(grass_shader_program, "model"), 1, GL_FALSE, &model[0][0]);
 
         glUniform3fv(glGetUniformLocation(grass_shader_program, "lightPosition"), 1, &lightPos[0]);
+        glUniform3fv(glGetUniformLocation(grass_shader_program, "cameraPosition"), 1, &camera.Position[0]);
+        glUniform1i(glGetUniformLocation(grass_shader_program, "debugSwitch"), debugSwitch);
 
         glDrawArraysIndirect(GL_PATCHES, 0);
 
@@ -436,6 +458,17 @@ void processInput(GLFWwindow *window)
 {
     float offset = 0.01f;
     float dt = 0.01f;
+
+     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+    {
+        debugSwitch = 1;
+        printf("debugSwitch on: %d \n", debugSwitch);
+    }
+     if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS)
+    {
+        debugSwitch = 0;
+        printf("debugSwitch on: %d \n", debugSwitch);
+    }
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);

@@ -4,12 +4,16 @@ layout (location = 0) in vec4 vPosition;
 layout (location = 1) in vec4 vV1;
 layout (location = 2) in vec4 vV2;
 layout (location = 3) in vec4 props;
+layout (location = 4) in float age;
 
 out vec4 tcV1;
 out vec4 tcV2;
 out vec4 tcProps;
 
 out vec3 tcBladeDir;
+
+out float tcAge;
+//out vec3 tcBladeUp;
 
 void main()
 {
@@ -19,11 +23,13 @@ void main()
 
     gl_Position = vPosition;
 
-    vec3 up = props.xyz;
-
     float dir = vPosition.w;
     float sinDir = sin(dir);
     float cosDir = cos(dir);
-    tcBladeDir = normalize(cross(up, normalize(vec3(sinDir, sinDir+cosDir, cosDir))));
+    tcBladeDir = normalize(cross(props.xyz, normalize(vec3(sinDir, sinDir+cosDir, cosDir))));
+
+    tcAge = age;
+    //tcAge = 0.1;
+
 };
 

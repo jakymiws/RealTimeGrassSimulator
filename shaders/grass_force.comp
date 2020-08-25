@@ -61,7 +61,7 @@ void main()
     float phaseConstantSpeed = waveSpeed * freq;
     float waveState = waveAmp * sin(dot(windDirection, p) * freq + (frameNum)*phaseConstantSpeed);
 
-    vec3 wi = vec3(1.0, 0.0, 1.0) * waveState;
+    vec3 wi = vec3(1.0, 0.0, 1.0) * waveState ;
     float windFd = 1 - abs( dot(normalize(wi), normalize(v2-p)));
     float windFr = dot(v2-p, blade_up)/blade_height;
     float windTheta = windFd*windFr;

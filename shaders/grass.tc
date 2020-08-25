@@ -7,9 +7,12 @@ in vec4 tcV2[];
 in vec4 tcProps[];
 in vec3 tcBladeDir[];
 
+in float tcAge[];
+
 patch out vec4 teV1;
 patch out vec4 teV2;
 patch out vec4 teProps;
+patch out float teAge;
 
 patch out vec3 teBladeDir;
 
@@ -28,8 +31,10 @@ void main()
     teV1 = tcV1[0];
     teV2 = tcV2[0];
     teProps = tcProps[0];
+    teAge = tcAge[0];
 
     teBladeDir = tcBladeDir[0];
+    //teBladeUp = tcBladeUp[0];
 
     gl_out[gl_InvocationID].gl_Position	= gl_in[gl_InvocationID].gl_Position;
 

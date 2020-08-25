@@ -10,11 +10,14 @@ patch in vec4 teV1;//w = height
 patch in vec4 teV2;//w = width
 patch in vec4 teProps;//xyz = up, w = stiffness
 
+patch in float teAge;
 patch in vec3 teBladeDir;
+//patch in vec3 teBladeUp;
 
 out vec3 fragNormal;
 out vec2 fragUV;
 out vec4 fragPosition;
+out float fragAge;
 
 vec3 BladeTriangle(vec3 i1, vec3 i2, float u, float v)
 {
@@ -31,44 +34,16 @@ vec3 BladeQuadCurve(vec3 i1, vec3 i2, float u, float v, vec3 normal, float w)
 
 void main()
 {
-    // float w = teV2.w;
-
-    // float u = gl_TessCoord.x;
-    // float v = gl_TessCoord.y;
-
-    // tessCoordY = gl_TessCoord.y;
-
-    // vec3 t1 = teBladeDir;
-    // vec3 pos = gl_in[0].gl_Position.xyz;
-    // vec3 tv1 = teV1.xyz;
-    // vec3 tv2 = teV2.xyz;
-
-    // vec3 a = pos + v*(tv1 - pos);
-    // vec3 b = tv1 + v*(tv2 - tv1);
-    // vec3 c = a + v*(b - a);
-
-    // vec3 c0 = c - w*t1;
-    // vec3 c1 = c + w*t1;
-
-    // vec3 t0 = (b-a)/length(b-a);
-
-    // vec3 tangent_cross = cross(t0, t1);
-
-    // vec3 n = tangent_cross/length(tangent_cross);
-
-    // float t = u + 0.5*v - u*v;
-
-    // vec3 bezier_position = (1.0 - t)*c0 + t*c1;
-
-    // gl_Position = projection * view  * model * vec4(bezier_position, 1.0);
-
+    fragAge = teAge;
 
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
 
+    //todo:
+    //use tess coords to fake a normal for lighting. Straight down at bottom, straight up at the top, interpolating in between.
+
     float bladeWidth = teV2.w;
 
-    //vec3 offset = vec3(0.0);
     vec3 offset = teBladeDir * teV2.w;
     vec3 half_offset = offset * 0.5;
 
@@ -81,25 +56,20 @@ void main()
     vec3 i1 = h1 + v * (h2 - h1);
     vec3 i2 = i1 + offset;
 
-    vec3 biTangent = teBladeDir;
-    vec3 tangent;
+    //vec3 biTangent = teBladeDir;
+    //vec3 tangent = teBladeUp;
 
-    if (dot(h1*h2, h1*h2) < 0.0001)
-    {
-        tangent = teBladeDir;
-    } else {
-        tangent = normalize(h1*h2);
-    }
-
-    //vec2 texA = mix(te)
     fragUV = vec2(u,v);
-    fragNormal = normalize(cross(tangent, biTangent));
+    //fragNormal = tangent;
+    //fragNormal = normalize(cross(tangent, biTangent));
+    //fragNormal = normalize(h1*h2);
+    fragNormal = (model * vec4(fragNormal,1.0)).xyz;
 
     vec3 position = BladeTriangle(i1, i2, u, v);
    // vec3 position = BladeQuadCurve(i1, i2, u, v, fragNormal, bladeWidth);
 
     gl_Position = projection * view * model * vec4(position, 1.0);
-
-    fragPosition = vec4(position, abs(sin(2.0*teV1.w)));
+    vec4 mPos = (model * vec4(position, 1.0));
+    fragPosition = vec4(mPos.xyz, abs(sin(2.0*teV1.w)));
 
 }
