@@ -70,7 +70,7 @@ float zTrans = 0.0f;
 float xTrans = 0.0f;
 float qScale = 2.0f;
 
-unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer, grassPropBuffer, grassAgeBuffer;
+unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer, grassPropBuffer, grassAgeBuffer, grassCollisionBuffer;
 unsigned int grassVBO_Indirect;
 
 int debugSwitch = 0;
@@ -255,6 +255,7 @@ float verts[] = {
     std::vector<glm::vec4> grass_blade_v2s;
     std::vector<glm::vec4> grass_blade_props;//y = height, z = width, w = stiffness
     std::vector<float> grass_ages;
+    std::vector<float> grass_collisions;
    // std::vector<glm::vec3> grass_blade_directions;
     for (int i = 0; i < num_blades; i++)
     {
@@ -280,6 +281,7 @@ float verts[] = {
         grass_blade_v2s.push_back(glm::vec4(controlPoint2, grass_width));
         grass_blade_props.push_back(glm::vec4(grass_up, blade_stiffness));
         grass_ages.push_back(grass_age);
+        grass_collisions.push_back(0.0f);
     }
 
     unsigned int grassVAO;
@@ -290,6 +292,7 @@ float verts[] = {
     glGenBuffers(1, &grassV2Buffer);
     glGenBuffers(1, &grassPropBuffer);
     glGenBuffers(1, &grassAgeBuffer);
+    glGenBuffers(1, &grassCollisionBuffer);
 
     glBindVertexArray(grassVAO);
 
@@ -321,6 +324,12 @@ float verts[] = {
     glBufferData(GL_ARRAY_BUFFER, num_blades * sizeof(float), grass_ages.data(), GL_STATIC_DRAW);
     glEnableVertexAttribArray(4);
     glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
+
+    glBindBuffer(GL_ARRAY_BUFFER, grassAgeBuffer);
+    glBufferData(GL_ARRAY_BUFFER, num_blades * sizeof(float), grass_collisions.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);//reset bound buffer
 
     int grassTexWidth, grassTexHeight, grassTexNumChannels;
@@ -427,6 +436,7 @@ float verts[] = {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, grassV1Buffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, grassV2Buffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, grassPropBuffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, grassCollisionBuffer);
 
         glDispatchCompute((num_blades/16) + 1, 1, 1);
 
