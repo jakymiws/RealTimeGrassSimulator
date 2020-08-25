@@ -20,6 +20,9 @@ layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
 
 uniform float frameNum;
 
+uniform vec4 sphereColliders[5];//xyz = center, w = radius
+uniform int numSphereColliders;
+
 void main()
 {
     uint id = gl_GlobalInvocationID.x;
@@ -71,6 +74,20 @@ void main()
 
     //apply integrated force
     v2 += computed_blade_translation;
+
+    //collisions
+    vec3 sphereCenter = sphereColliders[0].xyz;
+    float sphereRadius = sphereColliders[0].w;
+
+    vec3 curveMidPoint = 0.25*p + 0.5*v1 + 0.25*v2;
+
+    vec3 distCV2 = sphereCenter - v2; 
+    vec3 distCM = sphereCenter - curveMidPoint;
+
+    vec3 displacementV2 = min(length(distCV2)-sphereRadius, 0.0) * normalize(distCV2);
+    vec3 displacementM = min(length(distCM)-sphereRadius, 0.0) * normalize(distCM);
+
+    v2 += displacementV2 + displacementM;
 
     //validate state of control points
     v2 = v2 - blade_up * min(blade_up*(v2-p), 0.0);

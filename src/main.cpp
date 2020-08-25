@@ -44,7 +44,7 @@ float lastX = SCREEN_WIDTH / 2.0f;
 float lastY = SCREEN_HEIGHT / 2.0f;
 bool firstMouse = true;
 
-glm::vec3 lightPos(5.0f, 1.0f, 0.0f);
+glm::vec3 lightPos(0.0f, 1.0f, 3.0f);
 
 int num_blades = 200000;
 
@@ -66,7 +66,7 @@ const float MAX_BEND = 13.0f;
 
 const float planeDim = 10.0f;
 
-float zTrans = 3.0f;
+float zTrans = 0.0f;
 float xTrans = 0.0f;
 float qScale = 2.0f;
 
@@ -75,6 +75,14 @@ unsigned int grassVBO_Indirect;
 
 int debugSwitch = 0;
 
+int numSphereColliders = 5;
+std::vector<glm::vec4> sphereColliders;
+
+glm::mat4 sphereModel = glm::mat4(1.0f);
+glm::mat4 gProj = glm::mat4(1.0f);
+glm::mat4 gView = glm::mat4(1.0f);
+
+glm::vec3 sPos = glm::vec3(0.0, 0.1f, 0.0);
 
 float randomFloat()
 {
@@ -185,6 +193,48 @@ float verts[] = {
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    //collision test object
+    ShaderInfo coll_shader_info[] = {
+        {GL_VERTEX_SHADER, "../shaders/coll.vs"},
+        {GL_FRAGMENT_SHADER, "../shaders/coll.fs"},
+        {GL_NONE, NULL}
+    };
+
+    GLuint coll_shader_program = LoadShaders(coll_shader_info);
+
+    printf("coll shader program: %d \n", coll_shader_program);
+
+    unsigned int collVAO, collVBO;
+    glGenVertexArrays(1, &collVAO);
+    glGenBuffers(1, &collVBO);
+
+    glBindVertexArray(collVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, collVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    for (int i = 0; i < numSphereColliders; i++)
+    {
+        //sphereColliders.push_back(glm::vec4(0.0, 0.1, 0.0, 1.0));
+        sphereColliders.push_back(glm::vec4(sPos, 1.0f));
+    }
+
+    // glUseProgram(coll_shader_program);
+
+
+    // glm::vec3 spherePos = glm::vec3(sphereColliders[0].x, sphereColliders[0].y, sphereColliders[0].z);
+    // glm::mat4 cmodel = glm::mat4(1.0f);
+    // cmodel = glm::translate(cmodel, spherePos);
+    // cmodel = glm::scale(cmodel, glm::vec3(0.2f));
+
+    // glm::mat4 sphereScale = glm::mat4(1.0f);
+    // sphereScale = glm::scale(sphereScale, glm::vec3(0.2f));
+
+    // sphereColliders[0] = sphereScale * sphereColliders[0];
+
+    // glUniformMatrix4fv(glGetUniformLocation(coll_shader_program, "model"), 1, GL_FALSE, &cmodel[0][0]);
 
     //grass blades 
     ShaderInfo grass_shader_info[] = {
@@ -357,18 +407,21 @@ float verts[] = {
         
         processInput(window);
 
-        lightPos = glm::vec3(xTrans, lightPos.y, zTrans);
-
         float ratio;
         int width, height;
 
         glfwGetFramebufferSize(window, &width, &height);
         ratio = width / (float) height;
 
+        //sphereColliders[0] = sphereModel * glm::vec4(0.0, 0.1, 0.0, 1.0f) + glm::vec4(1.0, 0.0, 1.0, 0.0);
+        sphereColliders[0] = glm::vec4(sPos,1.0f);
+
         //compute forces then draw
         glUseProgram(force_compute_program);
 
         glUniform1f(glGetUniformLocation(force_compute_program, "frameNum"), (float)currentTime);
+        glUniform1i(glGetUniformLocation(force_compute_program, "numSphereColliders"), (int)sphereColliders.size());
+        glUniform4fv(glGetUniformLocation(force_compute_program, "sphereColliders[0]"), (int)sphereColliders.size(), (const GLfloat*)sphereColliders.data());
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, grassPosBuffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, grassV1Buffer);
@@ -401,6 +454,25 @@ float verts[] = {
         glBindVertexArray(lightVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         //End Display light cube
+
+        //Display coll object
+        glUseProgram(coll_shader_program);
+
+        glUniformMatrix4fv(glGetUniformLocation(coll_shader_program, "projection"), 1, GL_FALSE, &projection[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(coll_shader_program, "view"), 1, GL_FALSE, &view[0][0]);
+        
+        glm::vec3 spherePos = glm::vec4(xTrans, 0.1, zTrans, 1.0f);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, spherePos);
+        model = glm::scale(model, glm::vec3(0.2f));
+        glm::vec4 tmp = glm::vec4(spherePos,1.0f) * glm::inverse(model);
+        sPos = glm::vec3(tmp.x, tmp.y, tmp.z);
+
+        glUniformMatrix4fv(glGetUniformLocation(coll_shader_program, "model"), 1, GL_FALSE, &model[0][0]);
+
+        glBindVertexArray(collVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        //End Display coll object
 
         //Display ground plane
         glUseProgram(ground_shader_program);
@@ -440,8 +512,6 @@ float verts[] = {
 
         glDrawArraysIndirect(GL_PATCHES, 0);
 
-        //glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-        //glBindVertexArray(0);
         //End display tessellated quad
 
         glfwSwapBuffers(window);
