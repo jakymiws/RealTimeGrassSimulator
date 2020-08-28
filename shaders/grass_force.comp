@@ -52,9 +52,10 @@ void main()
     vec3 initialPoseV2 = p + blade_up*blade_height;
 
     float old_collision_force = collisions[id];
-    float collision_force = max(old_collision_force - 10.1*dt, 0.0);
+    float collision_force = max(old_collision_force - 0.5*dt, 0.0);
 
-    vec3 recovery_force = (initialPoseV2 - v2)*blade_stiffness * max(1-collision_force, 0.1);
+    vec3 recovery_force = (initialPoseV2 - v2) *  blade_stiffness * max(1-collision_force, 0.1);
+    //vec3 recovery_force = (initialPoseV2 - v2)*blade_stiffness;
 
     float gravity_acceleration = 9.81;
     vec3 gravity_direction = vec3(0, -1.0 ,0);
@@ -62,7 +63,6 @@ void main()
     vec3 local_front_gravity = 0.25 * length(environmental_gravity) * front_direction;//approximation of grass bending due to gravity.
     vec3 gravity_force = environmental_gravity + local_front_gravity;
 
-    //vec3 wi = vec3(1.0, 0.0, 1.0) * sin(frameNum) * p.x * p.z * 1.0;
     vec3 windDirection = normalize(vec3(1.0, 0.0, 1.0));
     float waveAmp = 1.0;
     float waveSpeed = 2.0;
@@ -96,7 +96,10 @@ void main()
 
     v2 += displacementV2 + displacementM;
 
-    collisions[id] = collision_force +  dot(displacementM, displacementM) + dot(displacementV2, displacementV2);
+    float minCv2 = min(length(distCV2)-sphereRadius, 0.0);
+    float minM = min(length(distCM)-sphereRadius, 0.0);
+
+    collisions[id] += dot(displacementV2+displacementM, displacementV2+displacementM);
 
     //validate state of control points
     v2 = v2 - blade_up * min(blade_up*(v2-p), 0.0);
