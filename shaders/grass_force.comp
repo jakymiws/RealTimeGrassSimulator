@@ -121,4 +121,7 @@ void main()
     cV1[id] = vec4(v1_corrected, blade_height);
     cV2[id] = vec4(v2_corrected, blade_width);
 
+    //culling
+    
+
 }

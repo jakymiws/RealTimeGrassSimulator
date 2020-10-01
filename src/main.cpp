@@ -1,3 +1,8 @@
+//Skyboxx
+//Wind function for helipcopter
+//Texture ground plane
+//Better grass texture?
+
 #include <glew.h>
 
 #include <GLFW/glfw3.h>
@@ -46,7 +51,7 @@ bool firstMouse = true;
 
 glm::vec3 lightPos(0.0f, 1.0f, 3.0f);
 
-int num_blades = 200000;
+int num_blades = 7000000;
 
 struct Blade
 {
@@ -64,11 +69,11 @@ const float MAX_WIDTH = 0.14f/sc;
 const float MIN_BEND = 7.0f;
 const float MAX_BEND = 13.0f;
 
-const float planeDim = 10.0f;
+const float planeDim = 50.0f;
 
 float zTrans = 0.0f;
 float xTrans = 0.0f;
-float qScale = 2.0f;
+float qScale = 10.0f;
 
 unsigned int grassPosBuffer, grassV1Buffer, grassV2Buffer, grassPropBuffer, grassAgeBuffer, grassCollisionBuffer;
 unsigned int grassVBO_Indirect;
@@ -120,7 +125,7 @@ int main(void)
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     
     glfwSwapInterval(1);
 
@@ -220,21 +225,6 @@ float verts[] = {
         //sphereColliders.push_back(glm::vec4(0.0, 0.1, 0.0, 1.0));
         sphereColliders.push_back(glm::vec4(sPos, 1.0f));
     }
-
-    // glUseProgram(coll_shader_program);
-
-
-    // glm::vec3 spherePos = glm::vec3(sphereColliders[0].x, sphereColliders[0].y, sphereColliders[0].z);
-    // glm::mat4 cmodel = glm::mat4(1.0f);
-    // cmodel = glm::translate(cmodel, spherePos);
-    // cmodel = glm::scale(cmodel, glm::vec3(0.2f));
-
-    // glm::mat4 sphereScale = glm::mat4(1.0f);
-    // sphereScale = glm::scale(sphereScale, glm::vec3(0.2f));
-
-    // sphereColliders[0] = sphereScale * sphereColliders[0];
-
-    // glUniformMatrix4fv(glGetUniformLocation(coll_shader_program, "model"), 1, GL_FALSE, &cmodel[0][0]);
 
     //grass blades 
     ShaderInfo grass_shader_info[] = {
@@ -422,8 +412,7 @@ float verts[] = {
         glfwGetFramebufferSize(window, &width, &height);
         ratio = width / (float) height;
 
-        //sphereColliders[0] = sphereModel * glm::vec4(0.0, 0.1, 0.0, 1.0f) + glm::vec4(1.0, 0.0, 1.0, 0.0);
-        sphereColliders[0] = glm::vec4(sPos,1.0f);
+        sphereColliders[0] = glm::vec4(sPos, 0.8f);
 
         //compute forces then draw
         glUseProgram(force_compute_program);
@@ -581,16 +570,7 @@ void processInput(GLFWwindow *window)
         zTrans -= offset;
         printf("Z: %f \n", zTrans);
     }
-    // if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
-    // {
-    //     qScale += offset;
-    //     printf("qscale: %f \n", qScale);
-    // }
-    // if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
-    // {
-    //     qScale -= offset;
-    //     printf("qscale: %f \n", qScale);
-    // }
+
     if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
     {
         debugMode = !debugMode;
